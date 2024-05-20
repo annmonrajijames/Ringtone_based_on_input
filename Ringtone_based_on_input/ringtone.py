@@ -18,11 +18,11 @@ def beep():
     thread = threading.currentThread()
     thread.do_run = True
     while getattr(thread, "do_run", True):
-        winsound.Beep(440, 100)  # 440 Hz for 100 milliseconds
+        winsound.Beep(440, 1000)  # Beep for 1000 milliseconds
 
 # Setting up the Tkinter window
 root = tk.Tk()
-root.title("Beep on Button Hold")
+root.title("Continuous Beep on Button Hold")
 
 beep_thread = None
 
