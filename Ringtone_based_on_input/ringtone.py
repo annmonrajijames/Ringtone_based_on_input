@@ -3,27 +3,23 @@ import numpy as np
 import threading
 import keyboard
 
-# Function to start playing sound
 def play_sound():
+    """Plays a continuous sound based on a global control flag."""
     global stream
-    volume = 0.5     # range [0.0, 1.0]
-    fs = 44100       # sampling rate, Hz
-    f = 440.0        # sine frequency, Hz
-
-    # Generate a continuous sine wave
+    volume = 0.5     # Range [0.0, 1.0]
+    fs = 44100       # Sampling rate, Hz
+    f = 440.0        # Sine frequency, Hz
     duration = 1.0   # Duration in seconds for each chunk
     samples = (np.sin(2*np.pi*np.arange(fs*duration)*f/fs)).astype(np.float32)
 
-    # Play the continuous sound
-    while True:
+    # Play the continuous sound as long as control flag is set
+    while control_flag == 1:
         stream.write(volume * samples)
-        if not continue_playing.is_set():
-            break
 
 def main():
-    global continue_playing, sound_thread, stream, p
-    continue_playing = threading.Event()
-    sound_thread = None
+    global control_flag, sound_thread, stream, p
+    control_flag = 0  # Control flag for playing sound (0 = off, 1 = on)
+    sound_thread = None  # Sound thread object
 
     # Set up the audio stream
     p = pyaudio.PyAudio()
@@ -33,17 +29,25 @@ def main():
                     output=True)
 
     # Bind spacebar events using the keyboard library
-    keyboard.on_press_key("space", lambda _: continue_playing.set() if not continue_playing.is_set() else None)
-    keyboard.on_release_key("space", lambda _: continue_playing.clear() if continue_playing.is_set() else None)
+    keyboard.on_press_key("space", lambda _: set_flag(1))
+    keyboard.on_release_key("space", lambda _: set_flag(0))
 
-    # Start sound thread when spacebar is pressed
+    # Main loop to manage sound based on the control flag
     while True:
-        if continue_playing.is_set() and sound_thread is None:
+        if control_flag == 1 and sound_thread is None:
+            # Start the sound thread if not already started
             sound_thread = threading.Thread(target=play_sound)
             sound_thread.start()
-        elif not continue_playing.is_set() and sound_thread is not None:
+        elif control_flag == 0 and sound_thread is not None:
+            # Wait for the sound thread to finish if control flag is cleared
             sound_thread.join()
             sound_thread = None
+
+def set_flag(value):
+    """Sets the control flag to the specified integer value and prints the status."""
+    global control_flag
+    control_flag = value
+    print(f"Control flag {value}")
 
 if __name__ == "__main__":
     try:
