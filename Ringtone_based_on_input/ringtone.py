@@ -1,7 +1,7 @@
-import tkinter as tk
 import pyaudio
-import threading
 import numpy as np
+import threading
+import keyboard
 
 # Function to start playing sound
 def play_sound():
@@ -20,52 +20,37 @@ def play_sound():
         if not continue_playing.is_set():
             break
 
-# Start or stop sound based on the input
-def manage_sound(input):
+def main():
     global continue_playing, sound_thread, stream, p
-    if input == '1' and not continue_playing.is_set():
-        continue_playing.set()
-        sound_thread = threading.Thread(target=play_sound)
-        sound_thread.start()
-        print("user input=", input)
-    elif input == '0' and continue_playing.is_set():
-        continue_playing.clear()
-        sound_thread.join()
-        print("user input=", input)
+    continue_playing = threading.Event()
+    sound_thread = None
 
-# GUI event handlers
-def on_press(event=None):
-    manage_sound('1')
+    # Set up the audio stream
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paFloat32,
+                    channels=1,
+                    rate=44100,
+                    output=True)
 
-def on_release(event=None):
-    manage_sound('0')
+    # Bind spacebar events using the keyboard library
+    keyboard.on_press_key("space", lambda _: continue_playing.set() if not continue_playing.is_set() else None)
+    keyboard.on_release_key("space", lambda _: continue_playing.clear() if continue_playing.is_set() else None)
 
-# Set up the audio stream
-p = pyaudio.PyAudio()
-stream = p.open(format=pyaudio.paFloat32,
-                channels=1,
-                rate=44100,
-                output=True)
+    # Start sound thread when spacebar is pressed
+    while True:
+        if continue_playing.is_set() and sound_thread is None:
+            sound_thread = threading.Thread(target=play_sound)
+            sound_thread.start()
+        elif not continue_playing.is_set() and sound_thread is not None:
+            sound_thread.join()
+            sound_thread = None
 
-# Set up the Tkinter window
-root = tk.Tk()
-root.title("Control Sound with Input")
-
-# Flag and thread initialization
-continue_playing = threading.Event()
-sound_thread = None
-
-# Create a button that controls the sound
-button = tk.Button(root, text="Press and Hold for Sound", width=30, height=5)
-button.pack(pady=20)
-
-# Bind button events
-button.bind("<ButtonPress>", on_press)
-button.bind("<ButtonRelease>", on_release)
-
-root.mainloop()
-
-# Clean up on window close
-stream.stop_stream()
-stream.close()
-p.terminate()
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        # Clean up on exit
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        print("Exited gracefully.")
