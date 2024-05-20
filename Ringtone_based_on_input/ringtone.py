@@ -9,12 +9,15 @@ def play_sound():
     volume = 0.5     # Range [0.0, 1.0]
     fs = 44100       # Sampling rate, Hz
     f = 440.0        # Sine frequency, Hz
-    duration = 1.0   # Duration in seconds for each chunk
+    # Reduced chunk duration for quicker response
+    duration = 0.1   # Duration in seconds for each chunk
     samples = (np.sin(2*np.pi*np.arange(fs*duration)*f/fs)).astype(np.float32)
 
-    # Play the continuous sound as long as control flag is set
+    # Play the continuous sound while checking control flag more frequently
     while control_flag == 1:
         stream.write(volume * samples)
+        if control_flag != 1:
+            break
 
 def main():
     global control_flag, sound_thread, stream, p
