@@ -68,25 +68,20 @@ def main():
     keyboard.on_release_key("space", lambda _: set_flag(0))
 
     while True:
-        print("\nRecording Session: Enter the duration to record in seconds or type 'exit' to quit.")
-        input_duration = input()
-        if input_duration.lower() == 'exit':
+        print("\nMain Menu: Choose an option:")
+        action = input("Type 'play' to playback, 'record' to start a new recording, or 'exit' to quit: ")
+        if action.lower() == 'exit':
             break
-        duration = float(input_duration)
-
-        global start_time
-        start_time = time.time()
-
-        # Start recording and playing sound
-        threading.Thread(target=play_and_record).start()
-        
-        time.sleep(duration)  # Wait for the duration to pass
-        save_recording()
-
-        print("\nPlayback Session: Choose an option or type 'skip' to start a new recording.")
-        action = input("Type 'play' to playback or 'skip' to continue recording: ")
-        if action.lower() == 'play':
+        elif action.lower() == 'play':
             play_stored_sound()
+        elif action.lower() == 'record':
+            print("Enter the duration to record in seconds:")
+            duration = float(input())
+            global start_time
+            start_time = time.time()
+            threading.Thread(target=play_and_record).start()
+            time.sleep(duration)  # Wait for the duration to pass
+            save_recording()
 
     # Cleanup
     stream.stop_stream()
