@@ -6,10 +6,8 @@ import time
 
 # Define global variables
 control_flag = 0
-sound_thread = None
 frames = []
 store = {"store1": [], "store2": [], "store3": [], "store4": [], "store5": []}
-current_store_key = ""
 events = []
 
 def set_flag(value):
@@ -33,32 +31,30 @@ def play_and_record():
         stream.write(adjusted_samples.tobytes())
         frames.append(adjusted_samples.tobytes())
 
-def setup_recording():
-    """Sets up the recording session."""
-    global start_time, duration, current_store_key
-    duration = float(input("Enter the duration to record in seconds: "))
-    current_store_key = input("Choose the storage variable (store1, store2, store3, store4, store5): ")
-    start_time = time.time()
-
 def save_recording():
     """Saves the recorded frames and events to the selected storage."""
-    global store, current_store_key, frames, events
-    store[current_store_key] = {
+    global store, frames, events
+    storage_key = input("Choose the storage variable (store1, store2, store3, store4, store5): ")
+    store[storage_key] = {
         "frames": frames.copy(),
         "events": events.copy()
     }
     frames.clear()
     events.clear()
+    print(f"Recording saved in {storage_key}.")
 
-def play_stored_sound(key):
+def play_stored_sound():
     """Plays the sound stored in the selected 'store' variable."""
-    global store, p, stream
+    key = input("Enter the storage key to play (store1, store2, etc.): ")
     if key in store and "frames" in store[key]:
         for frame in store[key]["frames"]:
             stream.write(frame)
+        print(f"Finished playing stored sound from {key}.")
+    else:
+        print("Invalid key or no recording found.")
 
 def main():
-    global stream, p
+    global stream, p, duration
 
     # Set up the audio stream
     p = pyaudio.PyAudio()
@@ -71,23 +67,32 @@ def main():
     keyboard.on_press_key("space", lambda _: set_flag(1))
     keyboard.on_release_key("space", lambda _: set_flag(0))
 
-    setup_recording()
-    
-    # Start recording and playing sound
-    threading.Thread(target=play_and_record).start()
-    
-    time.sleep(duration)  # Wait for the duration to pass
-    save_recording()
+    while True:
+        print("\nRecording Session: Enter the duration to record in seconds or type 'exit' to quit.")
+        input_duration = input()
+        if input_duration.lower() == 'exit':
+            break
+        duration = float(input_duration)
 
-    # User command to play stored sound
-    choice = input("Enter the storage key to play (store1, store2, etc.): ")
-    play_stored_sound(choice)
+        global start_time
+        start_time = time.time()
+
+        # Start recording and playing sound
+        threading.Thread(target=play_and_record).start()
+        
+        time.sleep(duration)  # Wait for the duration to pass
+        save_recording()
+
+        print("\nPlayback Session: Choose an option or type 'skip' to start a new recording.")
+        action = input("Type 'play' to playback or 'skip' to continue recording: ")
+        if action.lower() == 'play':
+            play_stored_sound()
 
     # Cleanup
     stream.stop_stream()
     stream.close()
     p.terminate()
-    print("Finished playing stored sound.")
+    print("Program terminated.")
 
 if __name__ == "__main__":
     main()
