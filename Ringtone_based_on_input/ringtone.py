@@ -6,49 +6,72 @@ import time
 
 # Define global variables
 control_flag = 0
-frames = []
-store = {"store1": [], "store2": [], "store3": [], "store4": [], "store5": []}
-events = []
+store = {"store1": None, "store2": None, "store3": None, "store4": None, "store5": None}
+wave_properties = {}
+event_log = []
 
 def set_flag(value):
     """Sets the global control flag for playing sound and logs the event."""
-    global control_flag, events
+    global control_flag, event_log
     control_flag = value
-    events.append((value, time.time()))
+    event_log.append((value, time.time()))
     print(f"Control flag set to {value} at {time.time()}")
 
 def play_and_record():
-    """Plays and records the sound based on user control."""
-    global stream, frames, start_time, duration
+    """Records the state changes based on user control."""
+    global start_time, duration, wave_properties
     volume = 0.5  # Range [0.0, 1.0]
     fs = 44100    # Sampling rate, Hz
     f = 440.0     # Sine frequency, Hz
     chunk_duration = 0.1  # Duration in seconds for each chunk
-    samples = (np.sin(2*np.pi*np.arange(fs*chunk_duration)*f/fs)).astype(np.float32)
+
+    # Store wave properties once
+    wave_properties = {
+        "volume": volume,
+        "frequency": f,
+        "sample_rate": fs,
+        "chunk_duration": chunk_duration
+    }
 
     while time.time() - start_time < duration:
-        adjusted_samples = (volume * samples).astype(np.float32) if control_flag == 1 else (np.zeros(int(fs*chunk_duration))).astype(np.float32)
-        stream.write(adjusted_samples.tobytes())
-        frames.append(adjusted_samples.tobytes())
+        time.sleep(0.1)  # Check flag every 100 ms
 
 def save_recording():
-    """Saves the recorded frames and events to the selected storage."""
-    global store, frames, events
+    """Saves the event log and wave properties to the selected storage."""
+    global store, wave_properties, event_log
     storage_key = input("Choose the storage variable (store1, store2, store3, store4, store5): ")
     store[storage_key] = {
-        "frames": frames.copy(),
-        "events": events.copy()
+        "properties": wave_properties.copy(),
+        "events": event_log.copy()
     }
-    frames.clear()
-    events.clear()
+    event_log.clear()
     print(f"Recording saved in {storage_key}.")
 
 def play_stored_sound():
-    """Plays the sound stored in the selected 'store' variable."""
+    """Plays the sound stored in the selected 'store' variable using stored wave properties and event log."""
     key = input("Enter the storage key to play (store1, store2, etc.): ")
-    if key in store and "frames" in store[key]:
-        for frame in store[key]["frames"]:
-            stream.write(frame)
+    if key in store and store[key]:
+        properties = store[key]["properties"]
+        events = store[key]["events"]
+        fs = properties["sample_rate"]
+        f = properties["frequency"]
+        volume = properties["volume"]
+        chunk_duration = properties["chunk_duration"]
+
+        samples = (np.sin(2*np.pi*np.arange(fs*chunk_duration)*f/fs)).astype(np.float32)
+        start_time = events[0][1]  # First event time
+
+        for event in events:
+            current_time = time.time()
+            target_time = start_time + (event[1] - start_time)  # Adjust for the relative event time
+            while current_time < target_time:
+                time.sleep(0.01)
+                current_time = time.time()
+            if event[0] == 1:
+                stream.write((volume * samples).tobytes())
+            else:
+                stream.write((np.zeros(int(fs*chunk_duration))).tobytes())
+
         print(f"Finished playing stored sound from {key}.")
     else:
         print("Invalid key or no recording found.")
